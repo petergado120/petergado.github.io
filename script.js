@@ -1,5 +1,128 @@
-function showAlert() {
-    alert("Terima kasih sudah menghubungi saya!");
+function escapeHtml(value) {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getStoredMessages() {
+    try {
+        const rawMessages = localStorage.getItem('peterMessages');
+        return rawMessages ? JSON.parse(rawMessages) : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveStoredMessages(messages) {
+    localStorage.setItem('peterMessages', JSON.stringify(messages));
+}
+
+function deleteMessage(indexToDelete) {
+    const messages = getStoredMessages();
+    const updatedMessages = messages.filter((_, index) => index !== indexToDelete);
+    saveStoredMessages(updatedMessages);
+    renderMessages();
+}
+
+function renderMessages() {
+    const container = document.getElementById('message-list');
+    const countBadge = document.getElementById('message-count');
+
+    if (!container) return;
+
+    const messages = getStoredMessages();
+
+    if (countBadge) {
+        countBadge.textContent = messages.length.toString();
+    }
+
+    if (!messages.length) {
+        container.innerHTML = '<div class="empty-state">Belum ada pesan masuk.</div>';
+        return;
+    }
+
+    container.innerHTML = messages.map((message, index) => `
+        <div class="message-card p-3 rounded-3">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <strong>${escapeHtml(message.name)}</strong>
+                    <div class="text-muted small">${escapeHtml(message.email)}</div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">${escapeHtml(message.createdAt)}</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteMessage(${index})" aria-label="Hapus pesan">×</button>
+                </div>
+            </div>
+            <p class="mb-0 mt-2">${escapeHtml(message.message)}</p>
+        </div>
+    `).join('');
+}
+
+async function handleContactSubmit(event) {
+    event.preventDefault();
+
+    const form = document.getElementById('contact-form');
+    const nameInput = document.getElementById('name-input');
+    const emailInput = document.getElementById('email-input');
+    const messageInput = document.getElementById('message-input');
+
+    if (!form || !nameInput || !emailInput || !messageInput) return;
+
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const message = messageInput.value.trim();
+
+    if (!name || !email || !message) {
+        alert('Silakan lengkapi semua kolom sebelum mengirim pesan.');
+        return;
+    }
+
+    const newMessage = {
+        name,
+        email,
+        message,
+        createdAt: new Date().toLocaleString('id-ID', {
+            dateStyle: 'short',
+            timeStyle: 'short'
+        })
+    };
+
+    try {
+        const response = await fetch('https://formsubmit.co/ajax/petergado120@gmail.com', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            body: new URLSearchParams({
+                name,
+                email,
+                message,
+                _subject: `Pesan baru dari ${name}`
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Gagal mengirim pesan');
+        }
+
+        const messages = getStoredMessages();
+        messages.unshift(newMessage);
+        saveStoredMessages(messages.slice(0, 10));
+        renderMessages();
+        form.reset();
+        alert('Terima kasih! Pesan Anda berhasil dikirim ke email Anda.');
+    } catch (error) {
+        const messages = getStoredMessages();
+        messages.unshift(newMessage);
+        saveStoredMessages(messages.slice(0, 10));
+        renderMessages();
+        form.reset();
+        alert('Pesan Anda tersimpan di halaman ini, tetapi ada gangguan saat mengirim ke email.');
+    }
 }
 
 function scrollToSection(id) {
@@ -89,4 +212,5 @@ window.addEventListener('DOMContentLoaded', () => {
 
     initTypingEffect();
     initParallax();
+    renderMessages();
 });
