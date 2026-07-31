@@ -27,6 +27,30 @@ function deleteMessage(indexToDelete) {
     renderMessages();
 }
 
+function sendAllMessagesToEmail() {
+    const messages = getStoredMessages();
+
+    if (!messages.length) {
+        alert('Belum ada pesan yang bisa dikirim.');
+        return;
+    }
+
+    const subject = `Daftar pesan masuk dari portofolio (${messages.length})`;
+    const body = messages.map((message, index) => {
+        return [
+            `Pesan ${index + 1}`,
+            `Nama: ${message.name}`,
+            `Email: ${message.email}`,
+            `Waktu: ${message.createdAt}`,
+            `Pesan: ${message.message}`,
+            ''
+        ].join('\n');
+    }).join('\n---\n\n');
+
+    const mailtoLink = `mailto:petergado120@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+}
+
 function renderMessages() {
     const container = document.getElementById('message-list');
     const countBadge = document.getElementById('message-count');
@@ -80,6 +104,12 @@ async function handleContactSubmit(event) {
         return;
     }
 
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+        alert('Format email tidak valid. Mohon gunakan alamat email yang benar.');
+        return;
+    }
+
     const newMessage = {
         name,
         email,
@@ -101,27 +131,30 @@ async function handleContactSubmit(event) {
                 name,
                 email,
                 message,
-                _subject: `Pesan baru dari ${name}`
+                _subject: `Pesan baru dari ${name}`,
+                _captcha: 'false',
+                _template: 'table'
             })
         });
 
-        if (!response.ok) {
+        const isRemoteSuccess = response.ok || response.type === 'opaque';
+        if (!isRemoteSuccess) {
             throw new Error('Gagal mengirim pesan');
         }
 
         const messages = getStoredMessages();
         messages.unshift(newMessage);
-        saveStoredMessages(messages.slice(0, 10));
+        saveStoredMessages(messages.slice(0, 100));
         renderMessages();
         form.reset();
-        alert('Terima kasih! Pesan Anda berhasil dikirim ke email Anda.');
+        alert('Terima kasih! Pesan Anda berhasil dikirim.');
     } catch (error) {
         const messages = getStoredMessages();
         messages.unshift(newMessage);
-        saveStoredMessages(messages.slice(0, 10));
+        saveStoredMessages(messages.slice(0, 100));
         renderMessages();
         form.reset();
-        alert('Pesan Anda tersimpan di halaman ini, tetapi ada gangguan saat mengirim ke email.');
+        alert('Pesan Anda tersimpan di halaman ini karena ada gangguan saat mengirim ke email.');
     }
 }
 
@@ -213,4 +246,9 @@ window.addEventListener('DOMContentLoaded', () => {
     initTypingEffect();
     initParallax();
     renderMessages();
+
+    const sendAllButton = document.getElementById('send-all-messages-btn');
+    if (sendAllButton) {
+        sendAllButton.addEventListener('click', sendAllMessagesToEmail);
+    }
 });
