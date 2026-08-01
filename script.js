@@ -131,6 +131,7 @@ async function handleContactSubmit(event) {
                 name,
                 email,
                 message,
+                _replyto: email,
                 _subject: `Pesan baru dari ${name}`,
                 _captcha: 'false',
                 _template: 'table'
